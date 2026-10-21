@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>NexusChat - Dual AI</title>
+<style>
+:root{--bg0:#0f172a;--bg1:#1e293b;--bg2:#334155;--tx0:#f8fafc;--tx1:#94a3b8;--cyan:#06b6d4;--purple:#8b5cf6;--green:#10b981;--red:#ef4444;--yellow:#eab308;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;}
+body{background:var(--bg0);color:var(--tx0);height:100vh;height:100dvh;overflow:hidden;}
+button{cursor:pointer;border:none;font-family:inherit;touch-action:manipulation;}
+input{font-family:inherit;}
+.app{display:flex;height:100vh;height:100dvh;position:relative;}
+.sidebar{width:280px;background:var(--bg1);border-right:1px solid var(--bg2);display:flex;flex-direction:column;flex-shrink:0;transition:transform .3s ease;z-index:50;}
+.sidebar-hdr{padding:18px;border-bottom:1px solid var(--bg2);text-align:center;}
+.sidebar-hdr h1{font-size:1.4rem;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sidebar-hdr .sub{font-size:.78rem;color:var(--tx1);margin-top:4px;}
+.sidebar-hdr .usr{font-size:.85rem;color:var(--cyan);margin-top:6px;}
+.rooms{flex:1;overflow-y:auto;padding:8px;}
+.room{padding:11px 13px;margin-bottom:4px;border-radius:10px;color:var(--tx1);display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:.2s;border:1px solid transparent;font-size:.92rem;}
+.room:hover{background:var(--bg2);color:var(--tx0);}
+.room.active{background:linear-gradient(90deg,rgba(6,182,212,.18),rgba(139,92,246,.18));color:var(--tx0);border-color:rgba(6,182,212,.35);}
+.room .badge{min-width:22px;text-align:center;background:var(--bg2);color:var(--tx1);border-radius:99px;font-size:.7rem;padding:2px 6px;}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
+.chat-hdr{padding:12px 18px;background:rgba(30,41,59,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--bg2);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.chat-hdr h2{font-size:1.1rem;}
+.chat-hdr .expert{color:var(--tx1);font-size:.82rem;margin-top:2px;}
+.typing-status{font-size:.75rem;color:var(--cyan);font-style:italic;height:16px;margin-top:2px;}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+.status-pill{padding:6px 10px;background:var(--bg2);border-radius:99px;display:flex;align-items:center;gap:6px;font-size:.78rem;white-space:nowrap;}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.hamburger{display:none;background:var(--bg2);color:var(--tx0);border-radius:8px;padding:8px 10px;font-size:1.2rem;}
+.msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.msg{max-width:82%;padding:11px 14px;border-radius:14px;line-height:1.5;word-break:break-word;animation:fadeUp .25s ease;position:relative;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.msg.user{align-self:flex-end;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#fff;border-bottom-right-radius:4px;}
+.msg.ai{align-self:flex-start;background:var(--bg1);border:1px solid var(--bg2);border-bottom-left-radius:4px;}
+.msg.sys{align-self:center;max-width:92%;text-align:center;font-size:.8rem;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.3);color:var(--cyan);padding:8px 12px;}
+.msg.err{align-self:center;max-width:92%;text-align:center;font-size:.8rem;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red);padding:8px 12px;}
+.msg .author{font-size:.72rem;opacity:.8;margin-bottom:3px;display:block;}
+.msg .meta{font-size:.65rem;opacity:.6;margin-top:4px;text-align:right;display:flex;justify-content:flex-end;align-items:center;gap:6px;}
+.msg .pending{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:pulse 1s infinite;}
+.msg-actions{position:absolute;top:-8px;right:-8px;display:none;background:var(--bg1);border:1px solid var(--bg2);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.3);z-index:10;}
+.msg.user:hover .msg-actions{display:flex;}
+.msg-actions button{padding:6px 10px;font-size:.8rem;color:var(--tx0);background:transparent;border-radius:6px;}
+.msg-actions button:hover{background:var(--bg2);}
+.msg.deleted{opacity:.5;font-style:italic;}
+.edit-input{width:100%;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px;border-radius:6px;font-size:.95rem;margin-bottom:6px;}
+.edit-btns{display:flex;gap:6px;justify-content:flex-end;}
+.edit-btns button{padding:4px 10px;border-radius:6px;font-size:.8rem;font-weight:700;}
+.typing{display:none;align-self:flex-start;background:var(--bg1);border:1px solid var(--bg2);border-radius:14px;padding:12px 15px;gap:4px;}
+.typing.on{display:flex;}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--cyan);animation:bounce 1.3s infinite;}
+.typing span:nth-child(2){animation-delay:.18s;}
+.typing span:nth-child(3){animation-delay:.36s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-6px);opacity:1;}}
+.input-bar{padding:14px;background:var(--bg1);border-top:1px solid var(--bg2);display:flex;gap:8px;}
+.input-bar input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--bg2);background:var(--bg0);color:var(--tx0);outline:none;font-size:1rem;}
+.input-bar input:focus{border-color:var(--cyan);}
+.btn{border-radius:12px;padding:10px 16px;font-weight:700;transition:.2s;font-size:.9rem;}
+.btn-p{background:linear-gradient(90deg,var(--cyan),var(--purple));color:#fff;}
+.btn-p:hover:not(:disabled){opacity:.92;transform:translateY(-1px);}
+.btn-p:disabled{opacity:.45;cursor:not-allowed;}
+.btn-s{background:var(--bg2);color:var(--tx0);}
+.btn-s:hover{opacity:.9;}
+.overlay{position:fixed;inset:0;background:rgba(2,6,23,.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;}
+.overlay.hidden{display:none !important;}
+.start-card{width:100%;max-width:820px;background:var(--bg1);border:1px solid var(--bg2);border-radius:20px;padding:24px;max-height:95vh;overflow-y:auto;}
+.start-card h1{font-size:1.8rem;text-align:center;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.start-card .sub{text-align:center;color:var(--tx1);margin:6px 0 18px;}
+.field{margin-bottom:16px;}
+.field label{display:block;color:var(--tx1);margin-bottom:6px;font-size:.9rem;}
+.field input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--bg2);background:var(--bg0);color:var(--tx0);outline:none;font-size:1rem;}
+.field input:focus{border-color:var(--cyan);}
+.room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;max-height:400px;overflow-y:auto;padding-right:4px;}
+.room-card{background:var(--bg0);border:1px solid var(--bg2);color:var(--tx0);border-radius:12px;padding:14px;text-align:left;transition:.2s;width:100%;}
+.room-card:hover{border-color:var(--cyan);transform:translateY(-2px);background:rgba(6,182,212,.05);}
+.room-card b{display:block;margin-bottom:4px;font-size:.95rem;}
+.room-card small{color:var(--tx1);font-size:.8rem;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:200;padding:12px;}
+.modal-bg.on{display:flex;}
+.modal{width:100%;max-width:720px;max-height:92vh;overflow-y:auto;background:var(--bg1);border:1px solid var(--bg2);border-radius:18px;padding:22px;}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.modal-hdr h3{color:var(--cyan);}
+.fg{margin-bottom:12px;}
+.fg label{display:block;color:var(--tx1);margin-bottom:5px;font-size:.88rem;}
+.fg input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--bg2);background:var(--bg0);color:var(--tx0);outline:none;}
+.mstat{margin-top:10px;padding:12px;background:var(--bg0);border-radius:10px;border-left:4px solid var(--bg2);}
+.mstat.testing{border-left-color:var(--yellow);}
+.mstat.active{border-left-color:var(--green);}
+.mstat.inactive{border-left-color:var(--red);}
+.scanlog{margin-top:12px;padding:12px;background:#020617;border:1px solid var(--bg2);border-radius:10px;min-height:100px;max-height:220px;overflow:auto;font-family:Consolas,monospace;font-size:.82rem;}
+.ls{color:var(--green);margin:2px 0;}.le{color:var(--red);margin:2px 0;}.li{color:var(--cyan);margin:2px 0;}.lw{color:var(--yellow);margin:2px 0;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.note{margin-top:8px;color:var(--tx1);font-size:.82rem;}
+.fb-status{margin-top:12px;padding:10px;background:var(--bg0);border-radius:8px;font-size:.85rem;border-left:4px solid var(--bg2);}
+.fb-status.ok{border-left-color:var(--green);}.fb-status.err{border-left-color:var(--red);}
+.sidebar-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;}
+.sidebar-bg.on{display:block;}
+.scroll-btn{position:absolute;bottom:80px;right:20px;background:var(--cyan);color:#000;border-radius:50%;width:44px;height:44px;display:none;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:0 4px 12px rgba(0,0,0,.3);z-index:20;}
+.scroll-btn.show{display:flex;}
+@media(max-width:768px){
+.sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);width:270px;z-index:50;}
+.sidebar.open{transform:translateX(0);}
+.hamburger{display:block;}
+.msg{max-width:92%;}
+.room-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+.start-card{padding:18px;}.start-card h1{font-size:1.5rem;}
+.msg-actions{display:flex;position:static;background:transparent;box-shadow:none;margin-top:6px;justify-content:flex-end;}
+}
+@media(max-width:400px){.room-grid{grid-template-columns:1fr;}.chat-hdr h2{font-size:1rem;}}
+::-webkit-scrollbar{width:7px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--bg2);border-radius:99px;}
+</style>
+</head>
+<body>
+<div class="overlay" id="overlay">
+<div class="start-card">
+<h1>⚡ NexusChat</h1>
+<div class="sub">Chat Condivisa in Tempo Reale • Sync Familiare</div>
+<div class="field"><label>Il tuo Nickname</label><input type="text" id="nickInput" placeholder="Inserisci un nickname per entrare" maxlength="30"></div>
+<div class="field"><label>Scegli la Stanza &amp; Esperto</label><div class="room-grid" id="roomGrid"></div></div>
+</div>
+</div>
+<div class="app">
+<div class="sidebar-bg" id="sideBg" onclick="closeSidebar()"></div>
+<aside class="sidebar" id="sidebar">
+<div class="sidebar-hdr"><h1>⚡ NexusChat</h1><div class="sub">Chat Condivisa • Sync Familiare</div><div class="usr" id="usrLabel"></div></div>
+<div class="rooms" id="roomList"></div>
+</aside>
+<main class="main">
+<header class="chat-hdr">
+<div style="display:flex;align-items:center;gap:10px;">
+<button class="hamburger" onclick="openSidebar()">☰</button>
+<div><h2 id="roomTitle">💬 Chat Libera</h2><div class="expert" id="expertLabel">Esperto: ...</div><div class="typing-status" id="typingStatus"></div></div>
+</div>
+<div class="hdr-right">
+<div class="status-pill"><div class="sdot" id="sDot"></div><span id="sTxt">Avvio...</span></div>
+<button class="btn btn-p" onclick="openSettings()" style="padding:7px 11px;font-size:.8rem;">⚙️</button>
+</div>
+</header>
+<div class="msgs" id="msgsBox"></div>
+<button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom()">↓</button>
+<div class="typing" id="typingInd"><span></span><span></span><span></span></div>
+<div class="input-bar">
+<input type="text" id="chatIn" placeholder="Scrivi un messaggio..." autocomplete="off">
+<button class="btn btn-p" id="sendBtn" onclick="sendMessage()" disabled>Invia</button>
+</div>
+</main>
+</div>
+<div class="modal-bg" id="modalBg">
+<div class="modal">
+<div class="modal-hdr"><h3>⚙️ Stato &amp; Modelli IA</h3><button class="btn btn-s" onclick="closeSettings()">✕</button></div>
+<div class="fg"><label>API Key Gemini</label><input type="password" id="inGemKey" placeholder="Incolla qui per aggiornarla"><div class="note" id="gemLbl">Stato: non verificata</div></div>
+<div class="fg"><label>API Key Groq</label><input type="password" id="inGroqKey" placeholder="Incolla qui per aggiornarla"><div class="note" id="groqLbl">Stato: non verificata</div></div>
+<div class="mstat inactive" id="stGem"><strong>🔷 Gemini:</strong> <span id="gemName">Non testato</span></div>
+<div class="mstat inactive" id="stGroq"><strong>🟠 Groq:</strong> <span id="groqName">Non testato</span></div>
+<div class="fb-status" id="fbStatus"><strong>Firebase:</strong> <span id="fbStatusText">Verifica...</span></div>
+<div class="fg" style="margin-top:12px;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="audioTgl" checked onchange="toggleAudio(this)"> Notifiche Audio ON</label></div>
+<div class="fg"><strong>Stato:</strong> <span id="genSt">Non pronta</span></div>
+<button class="btn btn-p" style="width:100%;margin-top:10px;" onclick="saveAndScan()">Salva Chiavi &amp; Scansione Completa</button>
+<div class="scanlog" id="scanLog"><div class="li">In attesa...</div></div>
+<div class="row2"><button class="btn btn-s" onclick="clearRoom()">Svuota Stanza</button><button class="btn btn-s" onclick="closeSettings()">Chiudi</button></div>
+</div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+// =============================================
+// FIREBASE
+// =============================================
+var firebaseConfig = {
+  apiKey: "AIzaSyCOAnO42Vc95ZkTooaYIJmW1BfGMaE98OU",
+  authDomain: "nexuschat-famiglia.firebaseapp.com",
+  projectId: "nexuschat-famiglia",
+  storageBucket: "nexuschat-famiglia.firebasestorage.app",
+  messagingSenderId: "312664521354",
+  appId: "1:312664521354:web:3411cb35b901f68aa0cb73"
+};
+var fbDb = null, fbReady = false;
+
+function initFirebase() {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        fbDb = firebase.firestore();
+        // Test rapido di connessione
+        fbDb.collection("nexus_messages").limit(1).get().then(function() {
+            fbReady = true;
+            setFbStatus(true, "Connesso ✓");
+            E.log("✅ Firebase connesso", "s");
+        }).catch(function(err) {
+            fbReady = false;
+            setFbStatus(false, "Errore: " + err.message);
+            E.log("❌ Firebase: " + err.message, "e");
+        });
+    } catch (e) {
+        fbReady = false;
+        setFbStatus(false, "Errore init: " + e.message);
+        E.log("❌ Firebase init: " + e.message, "e");
+    }
+}
+
+function setFbStatus(ok, msg) {
+    var el = document.getElementById("fbStatus");
+    var txt = document.getElementById("fbStatusText");
+    if (el) el.className = "fb-status " + (ok ? "ok" : "err");
+    if (txt) txt.textContent = msg;
+}
+
+// =============================================
+// CHIAVI API
+// =============================================
+var _SEED = {
+    g: ["s--4I6flEPXEgJ5koqOLDWczvy3IBXqz", "CySazIA"],
+    q: ["cB7rbwZVvcwZUPh4argeTnb7YF3bydGWLK","tcpb8a4FxkaTtAlUht_ksg"]
+};
+function _dec(p) { return (p[0] + p[1]).split("").reverse().join(""); }
+function getKeys() { return { gemini: _dec(_SEED.g), groq: _dec(_SEED.q) }; }
+
+// =============================================
+// STANZE
+// =============================================
+var ROOMS = [
+    { id: "libera", name: "💬 Chat Libera", expert: "Gem", persona: "Sei Gem, un assistente amichevole e versatile. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "tech", name: "💻 Tech & AI", expert: "Nexo", persona: "Sei Nexo, un Ingegnere del Software esperto. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "politica", name: "🏛️ Politica & Attualità", expert: "Tribuno", persona: "Sei Tribuno, un analista politico obiettivo. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "filosofia", name: "🧠 Filosofia & Dibattiti", expert: "Socrate", persona: "Sei Socrate, un filosofo che usa il metodo maieutico. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "segreti", name: "🕵️ Appuntamenti Segreti", expert: "Mylord", persona: "Sei Mylord, un personaggio misterioso ed enigmatico. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "relax", name: "☕ Relax & Caffè", expert: "Zen", persona: "Sei Zen, un barista saggio che offre consigli con calma. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "sport", name: "🏅 Sport & Fitness", expert: "Coach", persona: "Sei Coach, un trainer motivazionale. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "psicologo", name: "🛋️ Sportello Psicologo", expert: "Dr. Mind", persona: "Sei Dr. Mind, uno psicologo empatico. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "gaming", name: "🎮 Gaming Zone", expert: "Pixel", persona: "Sei Pixel, un gamer esperto. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "cinema", name: "🍿 Cinema & Serie TV", expert: "Cinefilo", persona: "Sei Cinefilo, un critico cinematografico. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." },
+    { id: "musica", name: "🎵 Musica & Art", expert: "Aura", persona: "Sei Aura, un artista eclettico. NON mostrare mai il tuo processo di ragionamento. Scrivi SOLO la risposta finale." }
+];
+
+var GROQ_FALLBACK = ["llama-3.3-70b-versatile","llama-3.1-8b-instant","llama-3.1-70b-versatile","llama3-70b-8192","llama3-8b-8192","mixtral-8x7b-32768","gemma2-9b-it","deepseek-r1-distill-llama-70b","qwen-2.5-coder-32b-instruct"];
+
+function gPri(id) {
+    id = String(id || "").toLowerCase();
+    if (id.indexOf("llama-3.3") > -1 && id.indexOf("70b") > -1) return 0;
+    if (id.indexOf("llama-3.1") > -1 && id.indexOf("8b") > -1 && id.indexOf("instant") > -1) return 1;
+    if (id.indexOf("llama-3.1") > -1 && id.indexOf("70b") > -1) return 2;
+    if (id.indexOf("llama3-70b") > -1) return 10;
+    if (id.indexOf("mixtral") > -1) return 20;
+    if (id.indexOf("gemma") > -1) return 30;
+    return 100;
+}
+function mPri(id) {
+    id = String(id || "").toLowerCase();
+    if (id.indexOf("gemini-1.5-flash") > -1) return 0;
+    if (id.indexOf("gemini-1.5-pro") > -1) return 1;
+    if (id.indexOf("gemini-1.0-pro") > -1) return 2;
+    return 10;
+}
+
+function esc(t) { return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function filterThinking(text) {
+    if (!text) return "";
+    text = text.replace(/<(think|thought|ragionamento)[\s\S]*?<\/(think|thought|ragionamento)>/gi, "");
+    text = text.replace(/```(?:thought|reasoning|ragionamento|think)[\s\S]*?```/gi, "");
+    text = text.replace(/^(Reasoning|Ragionamento|Pensiero|Thought|Analisi):\s*.*$/gim, "");
+    return text.replace(/\n\s*\n\s*\n/g, "\n\n").trim();
+}
+function fmt(t) {
+    var s = esc(filterThinking(t));
+    s = s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    s = s.replace(/`(.*?)`/g, "<code style='background:#020617;padding:2px 5px;border-radius:4px;'>$1</code>");
+    return s.replace(/\n/g, "<br>");
+}
+function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+var audioCtx = null;
+function initAudio() {
+    if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch(e) {} }
+}
+function playBeep() {
+    if (localStorage.getItem("nx_audio") === "0") return;
+    initAudio(); if (!audioCtx) return;
+    try { var o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = "sine"; o.frequency.value = 880; g.gain.value = 0.08; o.start(); setTimeout(function() { o.stop(); }, 120); } catch(e) {}
+}
+
+var MY_USER_ID = localStorage.getItem("nx_uid");
+if (!MY_USER_ID) { MY_USER_ID = "u_" + Math.random().toString(36).substr(2, 9); localStorage.setItem("nx_uid", MY_USER_ID); }
+
+// =============================================
+// MOTORE
+// =============================================
+var E = {
+    keys: { gemini: "", groq: "" },
+    best: { gemini: null, groq: null },
+    room: "libera",
+    messages: {},
+    unsubs: {},
+    presenceUnsub: null,
+    ready: false,
+    typingTimeout: null,
+    loadTimers: {},
+
+    init: function() {
+        var k = getKeys();
+        this.keys.gemini = localStorage.getItem("nx_gem") || k.gemini;
+        this.keys.groq = localStorage.getItem("nx_groq") || k.groq;
+        for (var i = 0; i < ROOMS.length; i++) this.messages[ROOMS[i].id] = [];
+        var sr = localStorage.getItem("nx_room");
+        if (sr) { for (var i = 0; i < ROOMS.length; i++) { if (ROOMS[i].id === sr) this.room = sr; } }
+    },
+
+    log: function(m, t) {
+        var el = document.getElementById("scanLog"); if (!el) return;
+        var d = document.createElement("div"); d.className = "l" + (t || "i");
+        d.textContent = "[" + new Date().toLocaleTimeString() + "] " + m;
+        el.appendChild(d); el.scrollTop = el.scrollHeight;
+        console.log("[" + (t || "info") + "] " + m);
+    },
+
+    updateUI: function() {
+        var r = !!(this.best.gemini || this.best.groq);
+        this.ready = r;
+        var sb = document.getElementById("sendBtn"); if (sb) sb.disabled = !r;
+        var st = document.getElementById("sTxt"); if (st) st.textContent = r ? "Dual-AI Attiva" : "Non pronta";
+        var sd = document.getElementById("sDot"); if (sd) sd.style.background = r ? "var(--green)" : "var(--red)";
+        var gs = document.getElementById("genSt"); if (gs) gs.textContent = r ? "Pronta" : "Non pronta";
+        var gl = document.getElementById("gemLbl"); if (gl) gl.textContent = this.keys.gemini ? "✓ Presente" : "Mancante";
+        var ql = document.getElementById("groqLbl"); if (ql) ql.textContent = this.keys.groq ? "✓ Presente" : "Mancante";
+    },
+
+    scanGemini: async function() {
+        var se = document.getElementById("stGem"), ne = document.getElementById("gemName");
+        if (se) se.className = "mstat testing"; if (ne) ne.textContent = "Test...";
+        if (!this.keys.gemini) { if (se) se.className = "mstat inactive"; if (ne) ne.textContent = "Mancante"; return; }
+        this.log("🔷 Scansione Gemini...", "i");
+        try {
+            var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(this.keys.gemini));
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            var data = await res.json(); var ms = data.models || []; var models = [];
+            for (var i = 0; i < ms.length; i++) { if (ms[i].name && (ms[i].supportedGenerationMethods || []).indexOf("generateContent") > -1) models.push(ms[i].name.replace(/^models\//, "")); }
+            models.sort(function(a, b) { return mPri(a) - mPri(b); });
+            this.log("Trovati " + models.length + " modelli Gemini", "s");
+            for (var j = 0; j < Math.min(models.length, 5); j++) {
+                var m = models[j]; this.log("🧪 " + m, "i");
+                try {
+                    var r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(m) + ":generateContent?key=" + encodeURIComponent(this.keys.gemini), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "OK" }] }] }) });
+                    if (r.ok) { var d = await r.json(); if (d.candidates && d.candidates[0]) { this.best.gemini = m; if (se) se.className = "mstat active"; if (ne) ne.textContent = m + " ✓"; this.log("🏆 Gemini: " + m, "s"); return; } }
+                } catch(e) {}
+            }
+            this.best.gemini = null; if (se) se.className = "mstat inactive"; if (ne) ne.textContent = "Fallito";
+        } catch (e) { this.best.gemini = null; if (se) se.className = "mstat inactive"; if (ne) ne.textContent = "Errore"; this.log("❌ Gemini: " + e.message, "e"); }
+    },
+
+    scanGroq: async function() {
+        var se = document.getElementById("stGroq"), ne = document.getElementById("groqName");
+        if (se) se.className = "mstat testing"; if (ne) ne.textContent = "Test...";
+        if (!this.keys.groq) { if (se) se.className = "mstat inactive"; if (ne) ne.textContent = "Mancante"; return; }
+        this.log("🟠 Scansione Groq...", "i");
+
+        // 1. Prova a scaricare la lista LIVE dei modelli
+        var models = [];
+        try {
+            this.log("📡 Scarico lista live modelli Groq...", "i");
+            var res = await fetch("https://api.groq.com/openai/v1/models", { headers: { "Authorization": "Bearer " + this.keys.groq } });
+            if (res.ok) {
+                var data = await res.json();
+                var ds = data.data || [];
+                for (var i = 0; i < ds.length; i++) {
+                    var mid = ds[i].id || "";
+                    if (mid && !/(whisper|tts|audio|speech|embedding|rerank|guard|moderation)/i.test(mid)) {
+                        models.push(mid);
+                    }
+                }
+                models.sort(function(a, b) { return gPri(a) - gPri(b); });
+                this.log("✅ Lista live: " + models.length + " modelli chat", "s");
+            } else {
+                this.log("⚠️ Lista live fallita (HTTP " + res.status + "), uso fallback", "w");
+            }
+        } catch (e) {
+            this.log("⚠️ Lista live errore: " + e.message + ", uso fallback", "w");
+        }
+
+        // 2. Se la lista live è vuota, uso fallback
+        if (models.length === 0) {
+            models = GROQ_FALLBACK.slice();
+            this.log("Uso lista fallback: " + models.length + " modelli", "i");
+        }
+
+        // 3. Testa ogni modello
+        for (var j = 0; j < models.length; j++) {
+            var mid = models[j];
+            this.log("🧪 [" + (j+1) + "/" + models.length + "] " + mid, "i");
+            var ok = false;
+            for (var retry = 0; retry < 2; retry++) {
+                try {
+                    var r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + this.keys.groq },
+                        body: JSON.stringify({ model: mid, messages: [{ role: "user", content: "OK" }], max_tokens: 5, temperature: 0 })
+                    });
+                    if (r.ok) {
+                        var d = await r.json();
+                        if (d.choices && d.choices[0] && d.choices[0].message) {
+                            this.best.groq = mid;
+                            if (se) se.className = "mstat active";
+                            if (ne) ne.textContent = mid + " ✓";
+                            this.log("🏆 Groq: " + mid, "s");
+                            ok = true; break;
+                        }
+                    } else {
+                        var er = await r.json().catch(function(){return{};});
+                        var em = (er.error && er.error.message) || "HTTP " + r.status;
+                        if (r.status === 429) { this.log("⏳ Rate limit, attendo...", "w"); await sleep(2500); }
+                        else { this.log("❌ " + mid + ": " + em, "e"); break; }
+                    }
+                } catch (e) { this.log("❌ " + mid + ": " + e.message, "e"); await sleep(1000); }
+            }
+            if (ok) return;
+            await sleep(400);
+        }
+        this.best.groq = null; if (se) se.className = "mstat inactive"; if (ne) ne.textContent = "Fallito";
+        this.log("❌ Nessun modello Groq funzionante", "e");
+    },
+
+    scanAll: async function() {
+        this.log("🚀 Scansione completa...", "i");
+        await this.scanGemini();
+        await this.scanGroq();
+        this.updateUI();
+        if (this.ready) this.log("🎉 Sistema pronto!", "s");
+        else this.log("⚠️ Nessuna AI disponibile", "e");
+    },
+
+    // 🔥 LISTENER FIRESTORE SENZA orderBy (evita problema indici)
+    listenRoom: function(roomId) {
+        if (!fbReady || !fbDb) { this.log("⚠️ Firebase non pronto", "w"); return; }
+        if (this.unsubs[roomId]) this.unsubs[roomId]();
+        var self = this;
+
+        this.updatePresence(roomId, false);
+
+        // Query SENZA orderBy - ordineremo lato client
+        this.unsubs[roomId] = fbDb.collection("nexus_messages")
+            .where("roomId", "==", roomId)
+            .onSnapshot(function(snapshot) {
+                var msgs = [];
+                snapshot.forEach(function(doc) {
+                    var d = doc.data();
+                    d.id = doc.id;
+                    msgs.push(d);
+                });
+
+                // Ordina lato client per timestamp
+                msgs.sort(function(a, b) {
+                    var ta = a.timestamp && a.timestamp.toMillis ? a.timestamp.toMillis() : (a.timestamp || 0);
+                    var tb = b.timestamp && b.timestamp.toMillis ? b.timestamp.toMillis() : (b.timestamp || 0);
+                    return ta - tb;
+                });
+
+                self.messages[roomId] = msgs;
+                if (self.room === roomId) renderChat();
+                buildRoomList();
+            }, function(err) {
+                self.log("❌ Errore listener: " + err.message, "e");
+            });
+
+        // Presenza
+        if (this.presenceUnsub) this.presenceUnsub();
+        this.presenceUnsub = fbDb.collection("nexus_presence")
+            .where("roomId", "==", roomId)
+            .onSnapshot(function(snapshot) {
+                var users = {}, typingUsers = [];
+                snapshot.forEach(function(doc) {
+                    var d = doc.data();
+                    var active = d.lastSeen && (Date.now() - d.lastSeen.toMillis()) < 60000;
+                    if (active) { users[d.nickname] = true; if (d.isTyping && d.userId !== MY_USER_ID) typingUsers.push(d.nickname); }
+                });
+                var el = document.getElementById("typingStatus");
+                if (el) el.textContent = typingUsers.length > 0 ? (typingUsers.length === 1 ? typingUsers[0] + " sta scrivendo..." : typingUsers.join(", ") + " stanno scrivendo...") : Object.keys(users).length + " online";
+            }, function() {});
+    },
+
+    updatePresence: function(roomId, isTyping) {
+        if (!fbReady || !fbDb) return;
+        var nick = localStorage.getItem("nx_nick") || "Anonimo";
+        fbDb.collection("nexus_presence").doc(MY_USER_ID + "_" + roomId).set({
+            userId: MY_USER_ID, roomId: roomId, nickname: nick, isTyping: isTyping,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(function() {});
+    },
+
+    unlistenAll: function() {
+        for (var rid in this.unsubs) { if (this.unsubs[rid]) try { this.unsubs[rid](); } catch(e) {} }
+        this.unsubs = {};
+        if (this.presenceUnsub) { try { this.presenceUnsub(); } catch(e) {} this.presenceUnsub = null; }
+        if (fbReady && fbDb) fbDb.collection("nexus_presence").doc(MY_USER_ID + "_" + this.room).delete().catch(function(){});
+    },
+
+    callAI: async function(roomId, systemPrompt) {
+        var history = this.messages[roomId] || [];
+        var clean = [];
+        for (var i = 0; i < history.length; i++) {
+            if (history[i].isDeleted !== true) clean.push(history[i]);
+        }
+        if (!clean.length) throw new Error("Nessun messaggio nella cronologia");
+
+        var lastErr = null;
+        var order = ["gemini", "groq", "gemini"];
+        for (var i = 0; i < order.length; i++) {
+            var p = order[i];
+            if (p === "gemini" && this.best.gemini && this.keys.gemini) {
+                try {
+                    var contents = [];
+                    for (var j = 0; j < clean.length; j++) {
+                        if (clean[j].role === "user" || clean[j].role === "assistant")
+                            contents.push({ role: clean[j].role === "assistant" ? "model" : "user", parts: [{ text: clean[j].content }] });
+                    }
+                    if (!contents.length) continue;
+                    var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(this.best.gemini) + ":generateContent?key=" + encodeURIComponent(this.keys.gemini), {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: contents, systemInstruction: { parts: [{ text: systemPrompt }] } })
+                    });
+                    if (res.ok) { var d = await res.json(); var rp = d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0] ? d.candidates[0].content.parts[0].text : null; if (rp) return filterThinking(rp); }
+                    else { var er = await res.json().catch(function(){return{};}); lastErr = "Gemini: " + (er.error && er.error.message || res.status); }
+                } catch (e) { lastErr = "Gemini: " + e.message; }
+            }
+            if (p === "groq" && this.best.groq && this.keys.groq) {
+                try {
+                    var msgs = [{ role: "system", content: systemPrompt }];
+                    for (var j = 0; j < clean.length; j++) {
+                        if (clean[j].role === "user" || clean[j].role === "assistant")
+                            msgs.push({ role: clean[j].role, content: clean[j].content });
+                    }
+                    if (msgs.length <= 1) continue;
+                    var res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + this.keys.groq },
+                        body: JSON.stringify({ model: this.best.groq, messages: msgs, temperature: 0.7 })
+                    });
+                    if (res.ok) { var d = await res.json(); var rp = d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message.content : null; if (rp) return filterThinking(rp); }
+                    else { var er = await res.json().catch(function(){return{};}); lastErr = "Groq: " + (er.error && er.error.message || res.status); }
+                } catch (e) { lastErr = "Groq: " + e.message; }
+            }
+            await sleep(300);
+        }
+        throw new Error(lastErr || "Nessuna AI disponibile");
+    }
+};
+
+// =============================================
+// UI
+// =============================================
+function buildRoomGrid() {
+    var g = document.getElementById("roomGrid"); if (!g) return; g.innerHTML = "";
+    for (var i = 0; i < ROOMS.length; i++) {
+        var r = ROOMS[i], b = document.createElement("button"); b.className = "room-card";
+        b.innerHTML = "<b>" + r.name + "</b><small>con " + r.expert + "</small>";
+        b.onclick = (function(rid) { return function() { enterApp(rid); }; })(r.id);
+        g.appendChild(b);
+    }
+}
+function buildRoomList() {
+    var l = document.getElementById("roomList"); if (!l) return; l.innerHTML = "";
+    for (var i = 0; i < ROOMS.length; i++) {
+        var r = ROOMS[i], d = document.createElement("div");
+        d.className = "room" + (r.id === E.room ? " active" : "");
+        var cnt = (E.messages[r.id] || []).filter(function(m){ return m.isDeleted !== true; }).length;
+        d.innerHTML = "<span>" + r.name + "</span>" + (cnt ? '<span class="badge">' + cnt + '</span>' : "");
+        d.onclick = (function(rid) { return function() { switchRoom(rid); closeSidebar(); }; })(r.id);
+        l.appendChild(d);
+    }
+}
+
+function enterApp(rid) {
+    var ni = document.getElementById("nickInput");
+    var nick = (ni ? ni.value : "").trim();
+    if (!nick) { alert("Devi inserire un nickname!"); return; }
+    initAudio();
+    localStorage.setItem("nx_nick", nick);
+    E.room = rid;
+    var ov = document.getElementById("overlay"); if (ov) ov.style.display = "none";
+    updateUsr(); updateHdr();
+    E.messages[rid] = [];
+    renderChat(true);
+    E.unlistenAll();
+    E.listenRoom(rid);
+
+    // 🔥 TIMEOUT: se dopo 8 secondi Firebase non ha caricato nulla, mostra "nessun messaggio"
+    if (E.loadTimers[rid]) clearTimeout(E.loadTimers[rid]);
+    E.loadTimers[rid] = setTimeout(function() {
+        if (E.room === rid && (E.messages[rid] || []).length === 0) {
+            renderChat(false); // Mostra "Nessun messaggio" invece di "Caricamento..."
+        }
+    }, 8000);
+}
+
+function updateUsr() { var n = localStorage.getItem("nx_nick") || ""; var el = document.getElementById("usrLabel"); if (el) el.textContent = n ? "👤 " + n : ""; }
+function switchRoom(rid) {
+    E.unlistenAll(); E.room = rid; localStorage.setItem("nx_room", rid);
+    updateHdr(); E.messages[rid] = []; renderChat(true); E.listenRoom(rid); buildRoomList();
+    if (E.loadTimers[rid]) clearTimeout(E.loadTimers[rid]);
+    E.loadTimers[rid] = setTimeout(function() { if (E.room === rid && (E.messages[rid] || []).length === 0) renderChat(false); }, 8000);
+}
+function updateHdr() {
+    var rm = null; for (var i = 0; i < ROOMS.length; i++) { if (ROOMS[i].id === E.room) rm = ROOMS[i]; } if (!rm) rm = ROOMS[0];
+    var t = document.getElementById("roomTitle"); if (t) t.textContent = rm.name;
+    var e = document.getElementById("expertLabel"); if (e) e.textContent = "Esperto: " + rm.expert;
+}
+function formatTime(ts) {
+    if (!ts) return "";
+    var d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.getHours().toString().padStart(2,'0') + ":" + d.getMinutes().toString().padStart(2,'0');
+}
+function renderChat(isLoading) {
+    var box = document.getElementById("msgsBox"); if (!box) return; box.innerHTML = "";
+    var h = E.messages[E.room] || [];
+    var rm = null; for (var i = 0; i < ROOMS.length; i++) { if (ROOMS[i].id === E.room) rm = ROOMS[i]; } if (!rm) rm = ROOMS[0];
+    if (isLoading && h.length === 0) {
+        var d = document.createElement("div"); d.className = "msg sys"; d.textContent = "⏳ Caricamento cronologia..."; box.appendChild(d);
+    } else if (!h.length) {
+        var d = document.createElement("div"); d.className = "msg sys"; d.textContent = "Nessun messaggio. Inizia la conversazione!"; box.appendChild(d);
+    } else {
+        for (var i = 0; i < h.length; i++) {
+            var m = h[i];
+            if (m.isDeleted === true) { var d = document.createElement("div"); d.className = "msg deleted"; d.innerHTML = "<span class='meta'>🗑️ Messaggio eliminato</span>"; box.appendChild(d); continue; }
+            var d = document.createElement("div"); d.className = "msg " + (m.role === "user" ? "user" : "ai");
+            var auth = m.role === "user" && m.author ? '<span class="author">' + esc(m.author) + '</span>' : "";
+            var pend = (m.pendingAI && m.role === "user") ? '<span class="pending"></span>' : '';
+            var edit = m.isEdited ? '<span style="font-size:.6rem;opacity:.7;">(Modificato)</span>' : '';
+            var meta = '<span class="meta">' + edit + formatTime(m.timestamp) + pend + '</span>';
+            var acts = "";
+            if (m.role === "user" && m.authorId === MY_USER_ID) acts = '<div class="msg-actions"><button onclick="startEdit(\'' + m.id + '\',this)">✏️</button><button onclick="deleteMsg(\'' + m.id + '\')">🗑️</button></div>';
+            d.innerHTML = auth + '<div class="msg-content">' + fmt(m.content) + '</div>' + meta + acts;
+            box.appendChild(d);
+        }
+    }
+    scrollToBottom();
+}
+function scrollToBottom() { var b = document.getElementById("msgsBox"); if (b) b.scrollTop = b.scrollHeight; var s = document.getElementById("scrollBtn"); if (s) s.classList.remove("show"); }
+function addMsg(type, text) { var b = document.getElementById("msgsBox"); if (!b) return; var d = document.createElement("div"); d.className = "msg " + type; d.innerHTML = type === "err" ? esc(text) : fmt(text); b.appendChild(d); b.scrollTop = b.scrollHeight; }
+
+function startEdit(msgId, btnEl) {
+    var msgEl = btnEl.closest(".msg"), ce = msgEl.querySelector(".msg-content");
+    var ct = filterThinking(E.messages[E.room].find(function(m){return m.id===msgId;}).content);
+    ce.innerHTML = '<input type="text" class="edit-input" id="ei_' + msgId + '" value="' + esc(ct) + '"><div class="edit-btns"><button class="btn-s" onclick="renderChat()">Annulla</button><button class="btn-p" onclick="saveEdit(\'' + msgId + '\')">Salva</button></div>';
+    var inp = document.getElementById("ei_" + msgId); inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length);
+    inp.addEventListener("keydown", function(ev) { if (ev.key === "Enter") saveEdit(msgId); });
+}
+async function saveEdit(msgId) {
+    var inp = document.getElementById("ei_" + msgId); if (!inp) return; var t = inp.value.trim(); if (!t) return;
+    if (fbReady && fbDb) try { await fbDb.collection("nexus_messages").doc(msgId).update({ content: t, isEdited: true }); } catch(e) {}
+}
+async function deleteMsg(msgId) {
+    if (!confirm("Eliminare per tutti?")) return;
+    if (fbReady && fbDb) try { await fbDb.collection("nexus_messages").doc(msgId).update({ isDeleted: true, content: "" }); } catch(e) {}
+}
+
+function handleTyping() { E.updatePresence(E.room, true); clearTimeout(E.typingTimeout); E.typingTimeout = setTimeout(function() { E.updatePresence(E.room, false); }, 2000); }
+
+async function sendMessage() {
+    var inp = document.getElementById("chatIn"); if (!inp) return;
+    var t = inp.value.trim(); if (!t) return;
+    initAudio();
+    var nick = localStorage.getItem("nx_nick") || "Utente";
+    inp.value = "";
+    E.updatePresence(E.room, false);
+    if (!E.ready) { alert("IA non pronta. Attendi la scansione."); return; }
+
+    // 🔥 Aggiungi messaggio locale IMMEDIATAMENTE
+    var userMsg = { roomId: E.room, role: "user", content: t, author: nick, authorId: MY_USER_ID, isEdited: false, isDeleted: false, pendingAI: true, timestamp: new Date(), _local: true };
+    if (!E.messages[E.room]) E.messages[E.room] = [];
+    E.messages[E.room].push(userMsg);
+    renderChat();
+
+    var sb = document.getElementById("sendBtn"); if (sb) sb.disabled = true;
+    var ty = document.getElementById("typingInd"); if (ty) ty.className = "typing on";
+    var st = document.getElementById("sTxt"); if (st) st.textContent = "Scrive...";
+
+    try {
+        if (fbReady && fbDb) {
+            try {
+                var ref = await fbDb.collection("nexus_messages").add({ roomId: E.room, role: "user", content: t, author: nick, authorId: MY_USER_ID, isEdited: false, isDeleted: false, pendingAI: true, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                userMsg._synced = true; userMsg.id = ref.id;
+            } catch(e) { console.warn("FB save err:", e); }
+        }
+        var rm = null; for (var i = 0; i < ROOMS.length; i++) { if (ROOMS[i].id === E.room) rm = ROOMS[i]; } if (!rm) rm = ROOMS[0];
+        var reply = await E.callAI(E.room, rm.persona);
+        var aiMsg = { roomId: E.room, role: "assistant", content: reply, author: rm.expert, authorId: "ai", isEdited: false, isDeleted: false, pendingAI: false, timestamp: new Date(), _local: true };
+        E.messages[E.room].push(aiMsg);
+        renderChat();
+        if (fbReady && fbDb) {
+            try {
+                await fbDb.collection("nexus_messages").add({ roomId: E.room, role: "assistant", content: reply, author: rm.expert, authorId: "ai", isEdited: false, isDeleted: false, pendingAI: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                userMsg.pendingAI = false;
+            } catch(e) {}
+        }
+        playBeep();
+    } catch (err) {
+        addMsg("err", "⚠️ Errore IA: " + err.message);
+        userMsg.pendingAI = false; renderChat();
+    } finally {
+        if (ty) ty.className = "typing"; if (sb) sb.disabled = !E.ready;
+        if (st) st.textContent = E.ready ? "Dual-AI Attiva" : "Non pronta";
+    }
+}
+
+function toggleAudio(cb) { localStorage.setItem("nx_audio", cb.checked ? "1" : "0"); }
+function openSidebar() { var s = document.getElementById("sidebar"); if (s) s.className = "sidebar open"; var b = document.getElementById("sideBg"); if (b) b.className = "sidebar-bg on"; }
+function closeSidebar() { var s = document.getElementById("sidebar"); if (s) s.className = "sidebar"; var b = document.getElementById("sideBg"); if (b) b.className = "sidebar-bg"; }
+function openSettings() { var m = document.getElementById("modalBg"); if (m) m.className = "modal-bg on"; E.updateUI(); }
+function closeSettings() { var m = document.getElementById("modalBg"); if (m) m.className = "modal-bg"; }
+function saveAndScan() {
+    var sl = document.getElementById("scanLog"); if (sl) sl.innerHTML = "";
+    var g = document.getElementById("inGemKey"), q = document.getElementById("inGroqKey");
+    if (g && g.value.trim()) { localStorage.setItem("nx_gem", g.value.trim()); E.keys.gemini = g.value.trim(); }
+    if (q && q.value.trim()) { localStorage.setItem("nx_groq", q.value.trim()); E.keys.groq = q.value.trim(); }
+    E.scanAll();
+}
+async function clearRoom() {
+    if (!confirm("Svuotare per TUTTI?")) return;
+    if (fbReady && fbDb) { try { var snap = await fbDb.collection("nexus_messages").where("roomId", "==", E.room).get(); var batch = fbDb.batch(); snap.forEach(function(doc) { batch.delete(doc.ref); }); await batch.commit(); } catch(e) {} }
+}
+
+// Scroll listener
+document.addEventListener("DOMContentLoaded", function() {
+    var box = document.getElementById("msgsBox");
+    if (box) box.addEventListener("scroll", function() {
+        var near = box.scrollHeight - box.scrollTop - box.clientHeight < 100;
+        var btn = document.getElementById("scrollBtn");
+        if (!near) btn.classList.add("show"); else btn.classList.remove("show");
+    });
+});
+
+// =============================================
+// AVVIO
+// =============================================
+document.addEventListener("DOMContentLoaded", function() {
+    initFirebase();
+    E.init();
+    buildRoomGrid();
+    buildRoomList();
+    updateHdr();
+    updateUsr();
+    var ov = document.getElementById("overlay"); if (ov) ov.style.display = "flex";
+    var ni = document.getElementById("nickInput"); if (ni) { ni.value = ""; ni.placeholder = "Inserisci un nickname per entrare"; }
+    document.body.addEventListener("click", initAudio, { once: true });
+    document.body.addEventListener("touchstart", initAudio, { once: true });
+    var inp = document.getElementById("chatIn");
+    if (inp) { inp.addEventListener("input", handleTyping); inp.addEventListener("keydown", function(ev) { if (ev.key === "Enter") { ev.preventDefault(); sendMessage(); } }); }
+    E.scanAll();
+});
+
+window.addEventListener("beforeunload", function() { if (fbReady && fbDb && E.room) fbDb.collection("nexus_presence").doc(MY_USER_ID + "_" + E.room).delete().catch(function(){}); });
+</script>
+</body>
+</html>
